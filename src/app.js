@@ -8,7 +8,26 @@ import { notFound, errorHandler } from './middleware/errorHandler.js';
 export function createApp() {
   const app = express();
 
-  app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+  // CORS_ORIGIN can be a single origin or a comma-separated list, so both
+  // local dev and the deployed frontend(s) can talk to this API at once.
+  const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+    .split(',')
+    .map((origin) => origin.trim());
+
+  app.use(
+    cors({
+      origin:
+        allowedOrigins.includes('*')
+          ? '*'
+          : (origin, callback) => {
+              if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+              } else {
+                callback(new Error(`Origin ${origin} not allowed by CORS`));
+              }
+            },
+    })
+  );
   app.use(express.json({ limit: '5mb' })); // logos/images are sent as base64
   app.use(morgan('dev'));
 
