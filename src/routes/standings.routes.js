@@ -4,17 +4,17 @@ import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', (req, res) => {
-  res.json(store.all('standings'));
+router.get('/', async (req, res) => {
+  res.json(await store.all('standings'));
 });
 
-router.post('/recalculate', requireAdmin, (req, res) => {
+router.post('/recalculate', requireAdmin, async (req, res) => {
   const { homeTeam, awayTeam, homeScore, awayScore } = req.body || {};
   if (!homeTeam || !awayTeam || homeScore === undefined || awayScore === undefined) {
     return res.status(400).json({ error: 'homeTeam, awayTeam, homeScore and awayScore are required' });
   }
 
-  let standings = [...store.all('standings')];
+  let standings = [...(await store.all('standings'))];
 
   if (!standings.some((s) => s.team === homeTeam)) {
     standings.push({ team: homeTeam, w: 0, l: 0 });
@@ -41,13 +41,13 @@ router.post('/recalculate', requireAdmin, (req, res) => {
     return team;
   });
 
-  store.replaceAll('standings', standings);
+  await store.replaceAll('standings', standings);
   res.json(standings);
 });
 
-router.post('/reset', requireAdmin, (req, res) => {
-  const reset = store.all('standings').map((team) => ({ ...team, w: 0, l: 0 }));
-  store.replaceAll('standings', reset);
+router.post('/reset', requireAdmin, async (req, res) => {
+  const reset = (await store.all('standings')).map((team) => ({ ...team, w: 0, l: 0 }));
+  await store.replaceAll('standings', reset);
   res.json(reset);
 });
 

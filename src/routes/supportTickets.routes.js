@@ -4,12 +4,12 @@ import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', requireAdmin, (req, res) => {
-  res.json(store.all('supportTickets'));
+router.get('/', requireAdmin, async (req, res) => {
+  res.json(await store.all('supportTickets'));
 });
 
 // Support requests come from the public Support page, so this endpoint is open.
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const ticket = {
     ...req.body,
     id: Date.now(),
@@ -17,15 +17,15 @@ router.post('/', (req, res) => {
     status: req.body.status || 'PENDING',
     createdAt: new Date().toISOString(),
   };
-  store.insert('supportTickets', ticket);
+  await store.insert('supportTickets', ticket);
   res.status(201).json(ticket);
 });
 
-router.patch('/:id/status', requireAdmin, (req, res) => {
+router.patch('/:id/status', requireAdmin, async (req, res) => {
   const { status } = req.body || {};
   if (!status) return res.status(400).json({ error: 'status is required' });
 
-  const updated = store.update('supportTickets', req.params.id, {
+  const updated = await store.update('supportTickets', req.params.id, {
     status,
     updatedAt: new Date().toISOString(),
   });
@@ -33,8 +33,8 @@ router.patch('/:id/status', requireAdmin, (req, res) => {
   res.json(updated);
 });
 
-router.delete('/:id', requireAdmin, (req, res) => {
-  const removed = store.remove('supportTickets', req.params.id);
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const removed = await store.remove('supportTickets', req.params.id);
   if (!removed) return res.status(404).json({ error: 'Support ticket not found' });
   res.status(204).end();
 });

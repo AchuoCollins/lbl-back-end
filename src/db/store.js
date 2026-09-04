@@ -1,9 +1,4 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '..', '..', 'data', 'db.json');
+import { db } from './firebase.js';
 
 const COLLECTIONS = [
   'teams',
@@ -18,42 +13,6 @@ const COLLECTIONS = [
   'admins',
 ];
 
-function emptyData() {
-  return COLLECTIONS.reduce((acc, key) => {
-    acc[key] = [];
-    return acc;
-  }, {});
-}
-
-function load() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    fs.writeFileSync(DB_PATH, JSON.stringify(emptyData(), null, 2));
-  }
-  const raw = fs.readFileSync(DB_PATH, 'utf-8');
-  const parsed = raw.trim() ? JSON.parse(raw) : {};
-  return { ...emptyData(), ...parsed };
-}
-
-let data = load();
-
-// First boot (or upgrading from the old single-admin/.env setup): seed the
-// admins collection from the env credentials so existing logins keep working.
-if (data.admins.length === 0 && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD_HASH) {
-  data.admins.push({
-    id: Date.now(),
-    name: 'Admin',
-    email: process.env.ADMIN_EMAIL,
-    passwordHash: process.env.ADMIN_PASSWORD_HASH,
-    createdAt: new Date().toISOString(),
-  });
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
-
-function persist() {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
-
 function assertCollection(collection) {
   if (!COLLECTIONS.includes(collection)) {
     throw new Error(`Unknown collection: ${collection}`);
@@ -61,51 +20,70 @@ function assertCollection(collection) {
 }
 
 export const store = {
-  all(collection) {
+  async all(collection) {
     assertCollection(collection);
-    return data[collection];
+    const snapshot = await db.collection(collection).get();
+    return snapshot.docs.map((doc) => doc.data());
   },
 
-  find(collection, id) {
+  async find(collection, id) {
     assertCollection(collection);
-    return data[collection].find((item) => String(item.id) === String(id));
+    const doc = await db.collection(collection).doc(String(id)).get();
+    return doc.exists ? doc.data() : undefined;
   },
 
-  insert(collection, item) {
+  async insert(collection, item) {
     assertCollection(collection);
-    data[collection].push(item);
-    persist();
+    await db.collection(collection).doc(String(item.id)).set(item);
     return item;
   },
 
-  update(collection, id, patch) {
+  async update(collection, id, patch) {
     assertCollection(collection);
-    let updated = null;
-    data[collection] = data[collection].map((item) => {
-      if (String(item.id) === String(id)) {
-        updated = { ...item, ...patch };
-        return updated;
-      }
-      return item;
-    });
-    persist();
+    const ref = db.collection(collection).doc(String(id));
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const updated = { ...doc.data(), ...patch };
+    await ref.set(updated);
     return updated;
   },
 
-  replaceAll(collection, items) {
+  async replaceAll(collection, items) {
     assertCollection(collection);
-    data[collection] = items;
-    persist();
-    return data[collection];
+    const colRef = db.collection(collection);
+    const existing = await colRef.get();
+
+    const batch = db.batch();
+    existing.docs.forEach((doc) => batch.delete(doc.ref));
+    items.forEach((item) => batch.set(colRef.doc(String(item.id)), item));
+    await batch.commit();
+
+    return items;
   },
 
-  remove(collection, id) {
+  async remove(collection, id) {
     assertCollection(collection);
-    const before = data[collection].length;
-    data[collection] = data[collection].filter((item) => String(item.id) !== String(id));
-    persist();
-    return data[collection].length < before;
+    const ref = db.collection(collection).doc(String(id));
+    const doc = await ref.get();
+    if (!doc.exists) return false;
+    await ref.delete();
+    return true;
   },
 };
+
+// First boot (or upgrading from the old single-admin/.env setup): seed the
+// admins collection from the env credentials so existing logins keep working.
+export async function seedAdminFromEnv() {
+  const admins = await store.all('admins');
+  if (admins.length === 0 && process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD_HASH) {
+    await store.insert('admins', {
+      id: Date.now(),
+      name: 'Admin',
+      email: process.env.ADMIN_EMAIL,
+      passwordHash: process.env.ADMIN_PASSWORD_HASH,
+      createdAt: new Date().toISOString(),
+    });
+  }
+}
 
 export default store;

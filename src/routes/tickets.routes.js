@@ -5,18 +5,18 @@ import { generateRef } from '../utils/generateRef.js';
 
 const router = Router();
 
-router.get('/', requireAdmin, (req, res) => {
-  res.json(store.all('tickets'));
+router.get('/', requireAdmin, async (req, res) => {
+  res.json(await store.all('tickets'));
 });
 
-router.get('/:id', requireAdmin, (req, res) => {
-  const ticket = store.find('tickets', req.params.id);
+router.get('/:id', requireAdmin, async (req, res) => {
+  const ticket = await store.find('tickets', req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(ticket);
 });
 
 // Ticket purchases come from the public site, so this endpoint is open.
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const ticket = {
     ...req.body,
     id: Date.now(),
@@ -24,7 +24,7 @@ router.post('/', (req, res) => {
     date: req.body.date || new Date().toISOString().slice(0, 10),
     status: req.body.status || 'CONFIRMED',
   };
-  store.insert('tickets', ticket);
+  await store.insert('tickets', ticket);
 
   res.status(201).json({
     ticket,
@@ -43,17 +43,17 @@ router.post('/', (req, res) => {
   });
 });
 
-router.patch('/:id/status', requireAdmin, (req, res) => {
+router.patch('/:id/status', requireAdmin, async (req, res) => {
   const { status } = req.body || {};
   if (!status) return res.status(400).json({ error: 'status is required' });
 
-  const updated = store.update('tickets', req.params.id, { status });
+  const updated = await store.update('tickets', req.params.id, { status });
   if (!updated) return res.status(404).json({ error: 'Ticket not found' });
   res.json(updated);
 });
 
-router.delete('/:id', requireAdmin, (req, res) => {
-  const removed = store.remove('tickets', req.params.id);
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const removed = await store.remove('tickets', req.params.id);
   if (!removed) return res.status(404).json({ error: 'Ticket not found' });
   res.status(204).end();
 });

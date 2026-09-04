@@ -33,18 +33,18 @@ router.use(
 );
 
 // Mirrors the site-wide "reset season" action in the admin dashboard.
-router.post('/season/reset', requireAdmin, (req, res) => {
-  const games = store.all('games').map((game) => ({
+router.post('/season/reset', requireAdmin, async (req, res) => {
+  const games = (await store.all('games')).map((game) => ({
     ...game,
     status: 'UPCOMING',
     homeScore: 0,
     awayScore: 0,
     quarters: { home: [0, 0, 0, 0], away: [0, 0, 0, 0] },
   }));
-  store.replaceAll('games', games);
+  await store.replaceAll('games', games);
 
-  const standings = store.all('standings').map((team) => ({ ...team, w: 0, l: 0 }));
-  store.replaceAll('standings', standings);
+  const standings = (await store.all('standings')).map((team) => ({ ...team, w: 0, l: 0 }));
+  await store.replaceAll('standings', standings);
 
   res.json({ games, standings });
 });

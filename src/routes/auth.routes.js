@@ -12,9 +12,8 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  const admin = store
-    .all('admins')
-    .find((a) => a.email.toLowerCase() === email.toLowerCase());
+  const admins = await store.all('admins');
+  const admin = admins.find((a) => a.email.toLowerCase() === email.toLowerCase());
 
   if (!admin) {
     return res.status(401).json({ error: 'Invalid credentials' });

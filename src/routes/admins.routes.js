@@ -17,8 +17,8 @@ function toPublic(admin, req) {
 
 router.use(requireAdmin);
 
-router.get('/', (req, res) => {
-  res.json(store.all('admins').map((a) => toPublic(a, req)));
+router.get('/', async (req, res) => {
+  res.json((await store.all('admins')).map((a) => toPublic(a, req)));
 });
 
 router.post('/', async (req, res) => {
@@ -31,7 +31,9 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
-  const exists = store.all('admins').some((a) => a.email.toLowerCase() === email.toLowerCase());
+  const exists = (await store.all('admins')).some(
+    (a) => a.email.toLowerCase() === email.toLowerCase()
+  );
   if (exists) {
     return res.status(409).json({ error: 'An admin with that email already exists' });
   }
@@ -44,18 +46,18 @@ router.post('/', async (req, res) => {
     passwordHash,
     createdAt: new Date().toISOString(),
   };
-  store.insert('admins', admin);
+  await store.insert('admins', admin);
 
   res.status(201).json(toPublic(admin, req));
 });
 
-router.delete('/:id', (req, res) => {
-  const admins = store.all('admins');
+router.delete('/:id', async (req, res) => {
+  const admins = await store.all('admins');
   if (admins.length <= 1) {
     return res.status(400).json({ error: "Can't remove the last remaining admin" });
   }
 
-  const removed = store.remove('admins', req.params.id);
+  const removed = await store.remove('admins', req.params.id);
   if (!removed) return res.status(404).json({ error: 'Admin not found' });
   res.status(204).end();
 });

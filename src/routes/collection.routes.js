@@ -9,43 +9,43 @@ import { requireAdmin } from '../middleware/auth.js';
 export function collectionRouter(collection, { decorateCreate } = {}) {
   const router = Router();
 
-  router.get('/', (req, res) => {
-    res.json(store.all(collection));
+  router.get('/', async (req, res) => {
+    res.json(await store.all(collection));
   });
 
-  router.put('/reorder', requireAdmin, (req, res) => {
+  router.put('/reorder', requireAdmin, async (req, res) => {
     const items = Array.isArray(req.body) ? req.body : req.body.items;
     if (!Array.isArray(items)) return res.status(400).json({ error: 'items array is required' });
-    res.json(store.replaceAll(collection, items));
+    res.json(await store.replaceAll(collection, items));
   });
 
-  router.get('/:id', (req, res) => {
-    const item = store.find(collection, req.params.id);
+  router.get('/:id', async (req, res) => {
+    const item = await store.find(collection, req.params.id);
     if (!item) return res.status(404).json({ error: `${collection} item not found` });
     res.json(item);
   });
 
-  router.post('/', requireAdmin, (req, res) => {
+  router.post('/', requireAdmin, async (req, res) => {
     let item = { ...req.body, id: Date.now() };
     if (decorateCreate) item = decorateCreate(item);
-    store.insert(collection, item);
+    await store.insert(collection, item);
     res.status(201).json(item);
   });
 
-  router.put('/:id', requireAdmin, (req, res) => {
-    const updated = store.update(collection, req.params.id, req.body);
+  router.put('/:id', requireAdmin, async (req, res) => {
+    const updated = await store.update(collection, req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: `${collection} item not found` });
     res.json(updated);
   });
 
-  router.patch('/:id', requireAdmin, (req, res) => {
-    const updated = store.update(collection, req.params.id, req.body);
+  router.patch('/:id', requireAdmin, async (req, res) => {
+    const updated = await store.update(collection, req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: `${collection} item not found` });
     res.json(updated);
   });
 
-  router.delete('/:id', requireAdmin, (req, res) => {
-    const removed = store.remove(collection, req.params.id);
+  router.delete('/:id', requireAdmin, async (req, res) => {
+    const removed = await store.remove(collection, req.params.id);
     if (!removed) return res.status(404).json({ error: `${collection} item not found` });
     res.status(204).end();
   });
